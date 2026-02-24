@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanito Tally - Web Installer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Der Web-Tools Button bringt sein eigenes Styling mit, aber wir zentrieren ihn */
+        esp-web-install-button {
+            margin-top: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Kanito Tally Installer</h1>
+        <p>Verbinde deinen ESP32-C6 per USB-C mit dem PC und klicke auf den Button unten, um die aktuelle "Kanito Tally"
+            Software direkt zu flashen.</p>
+        <p><i>Hinweis: Funktioniert nur in Google Chrome oder Microsoft Edge.</i></p>
+
+        <script type="module" src="https://unpkg.com/esp-web-tools@8.0.1/dist/web/install-button.js?module"></script>
+
+        <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
+    </div>
+
+</body>
+
+</html>
