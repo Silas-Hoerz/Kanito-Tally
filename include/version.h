@@ -1,9 +1,8 @@
 #ifndef KANITO_TALLY_VERSION_H_
 #define KANITO_TALLY_VERSION_H_
 
-// --- KANITO TALLY VERSION INFO ---
-// Format: MAJOR.MINOR.PATCH[-modifier]
-constexpr char kVersion[] = "0.1.0";
-constexpr char kProjectName[] = "Kanito Tally";
+#define KANITO_VERSION "0.1.0"
+#define KANITO_BUILD_DATE __DATE__
+#define KANITO_PROJECT_NAME "Kanito Tally"
 
 #endif  // KANITO_TALLY_VERSION_H_
