@@ -17,8 +17,6 @@ void setup() {
   status_led.SetMode(LedMode::kBlink);
   status_led.SetIntervalMs(500);
 
-  button.Begin();
-
   core.Begin();
 
   Serial.println("Kanito Tally initialized.");
@@ -26,6 +24,6 @@ void setup() {
 
 void loop() {
   status_led.Update();
-  button.Tick();
+  button.Update();
   core.Update();
 }
