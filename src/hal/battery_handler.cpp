@@ -8,14 +8,25 @@ BatteryHandler::BatteryHandler(uint8_t pin) : pin_(pin) {
 }
 
 void BatteryHandler::Update() {
-  // Read raw ADC value and convert to voltage
-  uint16_t raw = analogRead(pin_);
-  filtered_voltage_ = ((float)raw / kAdcResolution) * kAdcReferenceVoltage *
-                      kVoltageDividerRatio;
-
-  current_percentage_ = CalculatePercentage(filtered_voltage_);
-  // Update rate of change every minute
   uint32_t current_time = millis();
+
+  if (current_time - last_adc_time_ >= kAdcIntervalMs) {
+    last_adc_time_ = current_time;
+
+    float current_voltage_v =
+        (analogReadMilliVolts(pin_) * kVoltageDividerRatio / 1000.0f);
+    if (is_first_read_) {
+      filtered_voltage_ = current_voltage_v;
+      is_first_read_ = false;
+    } else {
+      filtered_voltage_ =
+          (current_voltage_v * kAlpha) + (filtered_voltage_ * (1.0f - kAlpha));
+    }
+    current_percentage_ = CalculatePercentage(filtered_voltage_);
+  }
+
+  // Update rate of change every minute
+
   if (current_time - last_update_time_ > 60000) {
     float delta_percentage = current_percentage_ - last_percentage_;
     uint32_t delta_time = current_time - last_update_time_;

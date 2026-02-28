@@ -18,6 +18,7 @@ class BatteryHandler {
   static constexpr float kAdcReferenceVoltage = 3.3f;
   static constexpr uint16_t kAdcResolution = 4095;
   static constexpr float kAlpha = 0.02f;
+  static constexpr float kAdcIntervalMs = 100.0f;
 
   uint8_t pin_;
 
@@ -27,6 +28,8 @@ class BatteryHandler {
 
   // Tracking
   uint32_t last_update_time_ = 0;
+  uint32_t last_adc_time_ = 0;
+  bool is_first_read_ = true;
   float last_percentage_ = 0.0f;
   float rate_of_change_ = 0.0f;            // % per ms
   float estimated_time_remaining_ = 0.0f;  // min
