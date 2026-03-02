@@ -19,8 +19,6 @@ The physical footprint of this device is dictated by the battery and the microco
 * **Input:** A single tactile switch (Alps Alpine or RAFI RACON for a premium click feel).
 * **Output:** An ultra-bright red LED (or a 4-pin common cathode RGB LED, supported via a hardware abstraction layer in the code).
 
-![Seeed Studio XIAO ESP32C6 microcontroller wired to a small LiPo battery and tactile switch](images/hardware-wiring.jpg)
-
 To make a 380mAh battery last for 10 to 12 hours with active WiFi, the code aggressively utilizes the ESP32's hardware features: CPU underclocking, WiFi modem-sleep (turning off the radio between router beacons), and heavy reliance on the deep sleep mode when "turned off".
 
 ---
@@ -43,8 +41,6 @@ Once flashed, the tally light needs to know how to connect to your production ne
 
 Instead, Kanito Tally uses a Captive Portal. 
 If you boot the device into config mode, it acts as its own WiFi access point. Connect your phone to it, and a clean, responsive dark-mode web interface will pop up automatically.
-
-![A smartphone screen displaying a dark mode captive portal web interface for WiFi and IP configuration](images/captive-portal.jpg)
 
 From this web UI, you can select the operating mode:
 * **Native Blackmagic ATEM:** Connects directly to an ATEM switcher via IP. Great for simple setups.
