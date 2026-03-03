@@ -28,8 +28,9 @@ class ButtonHandler {
  private:
   enum class ActionType { kNone, kShort, kLong };
 
-  OneButton button_;
   uint8_t pin_;
+  OneButton button_;
+
   ButtonEvent current_event_;
 
   ActionType action_sequence_[2];

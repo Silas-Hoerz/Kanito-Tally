@@ -4,12 +4,14 @@
 
 #include "hal/button_handler.h"
 #include "hal/led_handler.h"
+#include "network/network_handler.h"
 
 enum class SystemState { kBoot, kStandby, kLive, kConfig, kShutdown };
 
 class TallyCore {
  public:
-  explicit TallyCore(LedHandler& led, ButtonHandler& button);
+  explicit TallyCore(LedHandler& led, ButtonHandler& button,
+                     NetworkHandler& network);
   void Begin();
   void Update();
   // Triggers a state transition
@@ -29,6 +31,7 @@ class TallyCore {
   SystemState current_state_;
   LedHandler& led_;
   ButtonHandler& button_;
+  NetworkHandler& network_;
 
   uint32_t boot_time_;
 };

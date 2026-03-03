@@ -3,10 +3,14 @@
 
 #include <Arduino.h>
 
-TallyCore::TallyCore(LedHandler& led, ButtonHandler& button)
+#include "secrets.h"
+
+TallyCore::TallyCore(LedHandler& led, ButtonHandler& button,
+                     NetworkHandler& network)
     : current_state_(SystemState::kBoot),
       led_(led),
       button_(button),
+      network_(network),
       boot_time_(0) {}
 
 void TallyCore::Begin() { OnStateEntry(current_state_); }
@@ -28,19 +32,35 @@ void TallyCore::SetState(SystemState new_state) {
 void TallyCore::OnStateEntry(SystemState state) {
   switch (state) {
     case SystemState::kBoot: {
+      Serial.println("[CORE] State: Boot - Waiting for Long Press...");
+      led_.SetMode(LedMode::kBlink);
+      led_.SetIntervalMs(100);
+
       boot_time_ = millis();
       break;
     }
     case SystemState::kStandby: {
+      Serial.println("[CORE] State: Standby - Connecting to Network...");
+      led_.SetMode(LedMode::kBreath);
+      led_.SetIntervalMs(2000);
+
+      network_.Connect(kWifiSsid, kWifiPassword);
       break;
     }
     case SystemState::kLive: {
+      Serial.println("[CORE] State: Live - ON AIR");
+      led_.SetMode(LedMode::kOn);
       break;
     }
     case SystemState::kConfig: {
+      Serial.println("[CORE] State: Config - Starting AP...");
+      led_.SetMode(LedMode::kBlink);
+      led_.SetIntervalMs(500);
       break;
     }
     case SystemState::kShutdown: {
+      Serial.println("[CORE] State: Shutdown - Going to Deep Sleep...");
+      led_.SetMode(LedMode::kOff);
       break;
     }
     default:
@@ -107,10 +127,8 @@ void TallyCore::HandleBoot() {
   ButtonEvent button_event = button_.GetEvent();
   if (button_event == ButtonEvent::kLongPress) {
     SetState(SystemState::kStandby);
-  } else if (millis() - boot_time_ >= 1000) {
-    esp_deep_sleep_enable_gpio_wakeup((1ULL << kPinButton),
-                                      ESP_GPIO_WAKEUP_GPIO_LOW);
-    esp_deep_sleep_start();
+  } else if (millis() - boot_time_ >= 5000) {
+    //SetState(SystemState::kShutdown);
   }
 }
 
@@ -120,15 +138,18 @@ void TallyCore::HandleStandby() {
   if (button_event == ButtonEvent::kLongPress) {
     SetState(SystemState::kConfig);
   } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    SetState(SystemState::kShutdown);
+    //SetState(SystemState::kShutdown);
   }
 }
 
 void TallyCore::HandleLive() {}
+
 void TallyCore::HandleConfig() {}
+
 void TallyCore::HandleShutdown() {
-  Serial.println("Shutthing down.");
-  esp_deep_sleep_enable_gpio_wakeup((1ULL << kPinButton),
-                                    ESP_GPIO_WAKEUP_GPIO_LOW);
-  esp_deep_sleep_start();
+  delay(100);
+ 
+  //esp_deep_sleep_enable_gpio_wakeup((1ULL << kPinButton),
+  //                                  ESP_GPIO_WAKEUP_GPIO_LOW);
+ // esp_deep_sleep_start();
 }
