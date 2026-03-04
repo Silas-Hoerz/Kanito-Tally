@@ -48,19 +48,17 @@ void NetworkHandler::Update() {
         if (!udp_initialized_) {
           if (udp_.listen(kDefaultUdpPort)) {
             udp_.onPacket([this](AsyncUDPPacket packet) {
-              udp_initialized_ = true;
-              if (packet.length() == sizeof(Payload)) {
-                Payload received_data;
-                memcpy(&received_data, packet.data(), sizeof(Payload));
-                if (received_data.magic_word == kMagicWord &&
-                    received_data.version == kProtocolVersion) {
-                  this->incoming_payload_ = received_data;
-                  this->has_new_payload_ = true;
-                  Serial.printf("UDP Paket von %s empfangen\n",
-                                packet.remoteIP().toString().c_str());
-                }
+              InBoundMessage received_msg = protocol_v1_HubToTally_init_zero;
+
+              pb_istream_t stream =
+                  pb_istream_from_buffer(packet.data(), packet.length());
+              if (pb_decode(&stream, protocol_v1_HubToTally_fields,
+                            &received_msg)) {
+                this->incoming_payload_ = received_msg;
+                this->has_new_payload_ = true;
               }
             });
+            udp_initialized_ = true;
           }
         }
       } else {
@@ -118,11 +116,26 @@ void NetworkHandler::EvaluateSignalStrength() {
   }
 }
 
-bool NetworkHandler::GetLatestPayload(Payload& out_payload) {
+bool NetworkHandler::GetLatestPayload(InBoundMessage& out_payload) {
   if (has_new_payload_) {
     out_payload = incoming_payload_;
     has_new_payload_ = false;
     return true;
   }
   return false;
+}
+
+void NetworkHandler::SendTelemetry(const OutBoundMessage& telemetry_data) {
+  if (current_state_ != NetworkState::kConnected || !udp_initialized_) {
+    return;
+  }
+  uint8_t buffer[protocol_v1_TallyToHub_size];
+
+  pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  if (pb_encode(&stream, protocol_v1_TallyToHub_fields, &telemetry_data)) {
+    udp_.broadcastTo(buffer, stream.bytes_written, kDefaultUdpPort);
+  } else {
+    // Error
+  }
 }

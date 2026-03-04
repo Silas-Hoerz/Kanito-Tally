@@ -6,12 +6,13 @@
 #include "secrets.h"
 
 TallyCore::TallyCore(LedHandler& led, ButtonHandler& button,
-                     NetworkHandler& network)
+                     NetworkHandler& network, BatteryHandler& battery)
     : current_state_(SystemState::kBoot),
       previous_state_(SystemState::kBoot),
       led_(led),
       button_(button),
       network_(network),
+      battery_(battery),
       boot_time_(0) {}
 
 void TallyCore::Begin() { OnStateEntry(current_state_); }
@@ -80,6 +81,13 @@ void TallyCore::OnStateEntry(SystemState state) {
       led_.SetMode(LedMode::kOff);
       break;
     }
+    case SystemState::kError: {
+      Serial.println("[CORE] State: Config - Starting AP...");
+      led_.SetRelativeIntensity(1.0f);
+      led_.SetMode(LedMode::kBlink);
+      led_.SetIntervalMs(50);
+      break;
+    }
     default:
       break;
   }
@@ -89,6 +97,7 @@ void TallyCore::OnStateEntry(SystemState state) {
 
 void TallyCore::Update() {
   ProcessPayload();
+  SendTelemetry();
   ButtonEvent button_event = button_.GetEvent();
 
   bool event_consumed = false;
@@ -122,6 +131,10 @@ void TallyCore::Update() {
       HandleShutdown();
       break;
     }
+    case SystemState::kError: {
+      HandleError();
+      break;
+    }
     default:
       break;
   }
@@ -147,6 +160,9 @@ void TallyCore::OnStateExit(SystemState state) {
       break;
     }
     case SystemState::kShutdown: {
+      break;
+    }
+    case SystemState::kError: {
       break;
     }
     default:
@@ -193,42 +209,84 @@ void TallyCore::HandleShutdown() {
   esp_deep_sleep_start();
 }
 
+void TallyCore::HandleError() {
+  uint32_t now = millis();
+  static uint32_t entry_time = 0;
+  if (entry_time == 0) {
+    entry_time = now;
+  }
+  if (now - entry_time >= 2000) {
+    SetState(previous_state_);
+    entry_time = 0;
+  }
+}
+
 void TallyCore::ProcessPayload() {
-  // Payload incomming_data;
+  InBoundMessage incomming;
 
-  // if (network_.GetLatestPayload(incomming_data)) {
-  //   CommandType command = incomming_data.command;
-  //   switch (command) {
-  //     case CommandType::kHeartbeat:
-  //       /* code */
-  //       break;
-  //     case CommandType::kSetState:
-  //       switch (incomming_data.state) {
-  //         case DeviceState::kLive:
-  //           SetState(SystemState::kLive);
-  //           break;
-  //         case DeviceState::kPreview:
-  //           SetState(SystemState::kPreview);
-  //           break;
-  //         case DeviceState::kOff:
-  //           SetState(SystemState::kStandby);
-  //           break;
-  //       }
-  //       break;
-  //     case CommandType::kSetConfig:
-  //       /* code */
-  //       break;
-  //     case CommandType::kDiscoveryPing:
-  //       /* code */
-  //       break;
-  //     case CommandType::kDiscoveryPong:
-  //       /* code */
-  //       break;
+  if (network_.GetLatestPayload(incomming)) {
+    // ### HubToTally ###
+    // 1: message_id
+    // 2: State set_state
+    if (incomming.has_set_state) {
+      switch (incomming.set_state) {
+        case protocol_v1_State_STATE_STANDBY:
+          SetState(SystemState::kStandby);
+          break;
+        case protocol_v1_State_STATE_PREVIEW:
+          SetState(SystemState::kPreview);
+          break;
+        case protocol_v1_State_STATE_LIVE:
+          SetState(SystemState::kLive);
+          break;
+        case protocol_v1_State_STATE_ERROR:
+          SetState(SystemState::kError);
+          break;
+        default:
+          break;
+      }
+    }
+    // 3 *** Message "NetworkConfig" ***
 
-  //     default:
-  //       break;
-  //   }
-  // }
+    //    1: string ssid
+    //    2: string password
+    //    Later static_ip, gateway, subnet_mask
+
+    // 4 *** Message "DeviceConfig" ***
+
+    //    1: string device_name
+    //    2: int32 master_brightness
+    if (incomming.has_set_device &&
+        incomming.set_device.has_master_brightness) {
+      led_.SetMasterBrightness(incomming.set_device.master_brightness);
+    }
+    //    3: PowerMode power_mode
+
+    // 5: bool trigger_identify
+    if (incomming.has_trigger_identify && incomming.trigger_identify) {
+      led_.TempFlash(1000, 1.0f);
+    }
+    // 6: bool trigger_reboot
+    if (incomming.has_trigger_reboot && incomming.trigger_reboot) {
+      ESP.restart();
+    }
+  }
+}
+
+void TallyCore::SendTelemetry() {
+  static uint32_t last_telemetry_time = 0;
+  if (millis() - last_telemetry_time >= 2000) {
+    last_telemetry_time = millis();
+    OutBoundMessage tx_msg = protocol_v1_TallyToHub_init_zero;
+
+    tx_msg.current_state = GetProtoState(current_state_);
+    tx_msg.has_telemetry = true;
+    tx_msg.telemetry.battery_percentage = battery_.GetPercentage();
+    tx_msg.telemetry.rssi = network_.GetRssi();
+    tx_msg.telemetry.uptime_seconds = millis() / 1000;
+
+    network_.SendTelemetry(tx_msg);
+  }
 }
 
 bool TallyCore::HandleGlobalButton(ButtonEvent button_event) {
@@ -270,4 +328,25 @@ bool TallyCore::HandleGlobalButton(ButtonEvent button_event) {
   }
 
   return false;
+}
+
+protocol_v1_State TallyCore::GetProtoState(SystemState internal_state) {
+  switch (internal_state) {
+    case SystemState::kBoot:
+      return protocol_v1_State_STATE_BOOT;
+    case SystemState::kStandby:
+      return protocol_v1_State_STATE_STANDBY;
+    case SystemState::kPreview:
+      return protocol_v1_State_STATE_PREVIEW;
+    case SystemState::kLive:
+      return protocol_v1_State_STATE_LIVE;
+    case SystemState::kConfig:
+      return protocol_v1_State_STATE_CONFIG;
+    case SystemState::kShutdown:
+      return protocol_v1_State_STATE_SHUTDOWN;
+    case SystemState::kError:
+      return protocol_v1_State_STATE_ERROR;
+    default:
+      return protocol_v1_State_STATE_UNSPECIFIED;
+  }
 }

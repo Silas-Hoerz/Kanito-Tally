@@ -2,16 +2,25 @@
 #ifndef KANITO_TALLY_CORE_TALLY_CORE_H_
 #define KANITO_TALLY_CORE_TALLY_CORE_H_
 
+#include "hal/battery_handler.h"
 #include "hal/button_handler.h"
 #include "hal/led_handler.h"
 #include "network/network_handler.h"
 
-enum class SystemState { kBoot, kStandby, kPreview, kLive, kConfig, kShutdown };
+enum class SystemState {
+  kBoot,
+  kStandby,
+  kPreview,
+  kLive,
+  kConfig,
+  kShutdown,
+  kError
+};
 
 class TallyCore {
  public:
   explicit TallyCore(LedHandler& led, ButtonHandler& button,
-                     NetworkHandler& network);
+                     NetworkHandler& network, BatteryHandler& battery);
   void Begin();
   void Update();
   // Triggers a state transition
@@ -24,8 +33,10 @@ class TallyCore {
   void HandleLive(ButtonEvent event);
   void HandleConfig(ButtonEvent event);
   void HandleShutdown();
+  void HandleError();
 
   void ProcessPayload();
+  void SendTelemetry();
 
   // Transition helpers
   void OnStateEntry(SystemState state);
@@ -36,12 +47,14 @@ class TallyCore {
   LedHandler& led_;
   ButtonHandler& button_;
   NetworkHandler& network_;
+  BatteryHandler& battery_;
 
   uint32_t boot_time_;
   // uint32_t last_release_time_ = 0;
   // bool sequence_active_ = false;
 
   bool HandleGlobalButton(ButtonEvent event);
+  protocol_v1_State GetProtoState(SystemState internal_state);
 };
 
 #endif  // KANITO_TALLY_CORE_TALLY_CORE_H_

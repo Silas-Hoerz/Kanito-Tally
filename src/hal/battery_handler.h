@@ -17,7 +17,7 @@ class BatteryHandler {
   static constexpr float kVoltageDividerRatio = 2.0f;
   static constexpr float kAdcReferenceVoltage = 3.3f;
   static constexpr uint16_t kAdcResolution = 4095;
-  static constexpr float kAlpha = 0.02f;
+  static constexpr float kAlpha = 0.002f;
   static constexpr float kAdcIntervalMs = 100.0f;
 
   uint8_t pin_;

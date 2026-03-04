@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "core/tally_core.h"
+#include "hal/battery_handler.h"
 #include "hal/button_handler.h"
 #include "hal/led_handler.h"
 #include "network/network_handler.h"
@@ -11,7 +12,8 @@
 LedHandler status_led(kPinLedRed);
 ButtonHandler button(kPinButton, true);
 NetworkHandler network;
-TallyCore core(status_led, button, network);
+BatteryHandler battery(kPinAdcBat);
+TallyCore core(status_led, button, network, battery);
 
 void setup() {
   Serial.begin(kSerialBaud);
@@ -28,5 +30,6 @@ void loop() {
   status_led.Update();
   button.Update();
   network.Update();
+  battery.Update();
   core.Update();
 }

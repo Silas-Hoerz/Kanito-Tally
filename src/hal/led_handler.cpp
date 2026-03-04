@@ -30,6 +30,14 @@ uint32_t LedHandler::CalculateGamma(float normalized_value) {
 }
 
 void LedHandler::Update() {
+  if (is_flashing_) {
+    if (millis() - flash_start_ms_ >= flash_duration_ms_) {
+      is_flashing_ = false;
+    } else {
+      return;
+    }
+  }
+
   float active_max = (master_brightness_ / 255.0f) * relative_intensity_;
   switch (current_mode_) {
     case LedMode::kOn:
@@ -62,3 +70,13 @@ void LedHandler::Update() {
 void LedHandler::SetMode(LedMode mode) { current_mode_ = mode; }
 
 void LedHandler::SetIntervalMs(uint32_t interval) { interval_ms_ = interval; }
+
+void LedHandler::TempFlash(uint32_t duration, float intensity) {
+  is_flashing_ = true;
+  flash_start_ms_ = millis();
+  flash_duration_ms_ = duration;
+  flash_intensity_ = constrain(intensity, 0.0f, 1.0f);
+
+  float active_max = (master_brightness_ / 255.0f) * flash_intensity_;
+  analogWrite(pin_, CalculateGamma(active_max));
+}

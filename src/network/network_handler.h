@@ -4,15 +4,16 @@
 
 #include <AsyncUDP.h>
 #include <WiFi.h>
-// #include <pb.h>
-// #include <pb_decode.h>
+#include <pb_decode.h>
+#include <pb_encode.h>
 
 #include "Arduino.h"
 #include "config.h"
 #include "esp_wifi.h"
-#include "protocol.h"
-// #include "protocol.pb.h"
-const uint16_t kDefaultUdpPort = 4444;
+#include "protocol.pb.h"
+
+using InBoundMessage = protocol_v1_HubToTally;
+using OutBoundMessage = protocol_v1_TallyToHub;
 
 enum class NetworkState { kDisconnected, kConnecting, kConnected };
 
@@ -29,7 +30,8 @@ class NetworkHandler {
   NetworkState GetState();
   bool IsConnected();
   int8_t GetRssi();
-  bool GetLatestPayload(Payload& out_payload);
+  bool GetLatestPayload(InBoundMessage& out_payload);
+  void SendTelemetry(const OutBoundMessage& telemetry_data);
 
  private:
   void EvaluateSignalStrength();
@@ -44,6 +46,7 @@ class NetworkHandler {
   char ssid_[33];
   char password_[64];
   uint16_t udp_port_;
+  const uint16_t kDefaultUdpPort = 4444;
 
   IPAddress local_ip_;
   int8_t rssi_;
@@ -53,13 +56,11 @@ class NetworkHandler {
 
   AsyncUDP udp_;
 
-  Payload incoming_payload_;
+  InBoundMessage incoming_payload_;
   bool has_new_payload_ = false;
 
   static constexpr uint32_t kConnectionTimeoutMs = 10000;
   static constexpr uint32_t kReconnectIntervallMs = 5000;
-
-  // static constexpr uint32_t kEvaluationIntervallMs = 2000;
 };
 
 #endif  // KANITO_TALLY_NETWORK_NETWORK_HANDLER_H_
