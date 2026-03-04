@@ -9,13 +9,12 @@
 
 // Global objects
 LedHandler status_led(kPinLedRed);
-ButtonHandler button(kPinButton);
+ButtonHandler button(kPinButton, true);
 NetworkHandler network;
 TallyCore core(status_led, button, network);
 
 void setup() {
   Serial.begin(kSerialBaud);
-  delay(3000);
   status_led.Begin();
   status_led.SetMode(LedMode::kBlink);
   status_led.SetIntervalMs(500);

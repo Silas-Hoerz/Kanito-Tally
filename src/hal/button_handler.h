@@ -9,43 +9,43 @@
 // Strict enum class fr all logical button events
 enum class ButtonEvent {
   kNone,
-  kShortPress,
-  kDoubleShortPress,
-  kLongPress,
-  kDoubleLongPress,
-  kShortAndLongPress,
-  kLongAndShortPress
+  kPressed,
+  kReleased,
+  kShortClicked,
+  kLongPressStart,
+  kLongPressed,
 };
 
 class ButtonHandler {
  public:
-  explicit ButtonHandler(uint8_t pin);
+  explicit ButtonHandler(uint8_t pin, bool active_low = true);
 
   void Update();
 
   ButtonEvent GetEvent();
 
+  bool IsPressed() { return is_pressed_; };
+
+  void SetDebounceMs(uint32_t ms) { debounce_ms_ = ms; };
+  void SetLongPressMs(uint32_t ms) { long_press_ms_ = ms; };
+
+  uint32_t GetMaxSequencePause() { return max_sequence_pause_; };
+
  private:
-  enum class ActionType { kNone, kShort, kLong };
-
   uint8_t pin_;
-  OneButton button_;
+  bool active_low_;
 
-  ButtonEvent current_event_;
+  bool last_state_ = false;
+  bool is_pressed_ = false;
+  bool long_press_fired_ = false;
 
-  ActionType action_sequence_[2];
-  uint8_t sequence_length_;
-  uint32_t last_action_time_;
+  uint32_t last_debounce_time_ = 0;
+  uint32_t press_start_time_ = 0;
 
-  static constexpr uint32_t kComboTimeoutMs = 600;
+  ButtonEvent current_event_ = ButtonEvent::kNone;
 
-  void AddAction(ActionType action);
-  void EvaluateSequence();
-
-  // Callback methods required by OneButton.
-  static void OnClick(void* ptr);
-  static void OnDoubleClick(void* ptr);
-  static void OnLongPressStart(void* ptr);
-  static void OnLongPressStop(void* ptr);
+  uint32_t debounce_ms_ = 25;
+  uint32_t long_press_ms_ = 800;
+  uint32_t max_sequence_pause_ = 500;
 };
 #endif  // KANITO_TALLY_HAL_BUTTON_HANDLER_H_

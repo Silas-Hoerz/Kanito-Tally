@@ -41,7 +41,7 @@ void TallyCore::OnStateEntry(SystemState state) {
     case SystemState::kBoot: {
       Serial.println("[CORE] State: Boot - Waiting for Long Press...");
       led_.SetRelativeIntensity(0.5f);
-      led_.SetMode(LedMode::kBlink);
+      led_.SetMode(LedMode::kOff);
       led_.SetIntervalMs(50);
 
       boot_time_ = millis();
@@ -90,6 +90,13 @@ void TallyCore::OnStateEntry(SystemState state) {
 void TallyCore::Update() {
   ProcessPayload();
   ButtonEvent button_event = button_.GetEvent();
+
+  bool event_consumed = false;
+  if (button_event != ButtonEvent::kNone) {
+    event_consumed = HandleGlobalButton(button_event);
+    if (event_consumed) return;
+  }
+
   switch (current_state_) {
     case SystemState::kBoot: {
       HandleBoot(button_event);
@@ -150,44 +157,34 @@ void TallyCore::OnStateExit(SystemState state) {
 // --- Specific State Implementations ---
 
 void TallyCore::HandleBoot(ButtonEvent button_event) {
-  if (button_event == ButtonEvent::kLongPress) {
+  if (button_event == ButtonEvent::kLongPressStart) {
     SetState(SystemState::kStandby);
   } else if (millis() - boot_time_ >= 3000) {
     SetState(SystemState::kShutdown);
   }
 }
 
-void TallyCore::HandleStandby(ButtonEvent button_event) {
-  if (button_event == ButtonEvent::kLongPress) {
-    SetState(SystemState::kConfig);
-  } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    SetState(SystemState::kShutdown);
-  }
-}
-void TallyCore::HandlePreview(ButtonEvent button_event) {
-  if (button_event == ButtonEvent::kLongPress) {
-    SetState(SystemState::kConfig);
-  } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    SetState(SystemState::kShutdown);
-  }
-}
-
-void TallyCore::HandleLive(ButtonEvent button_event) {
-  if (button_event == ButtonEvent::kLongPress) {
-    SetState(SystemState::kConfig);
-  } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    SetState(SystemState::kShutdown);
-  }
-}
-
+void TallyCore::HandleStandby(ButtonEvent button_event) {}
+void TallyCore::HandlePreview(ButtonEvent button_event) {}
+void TallyCore::HandleLive(ButtonEvent button_event) {}
 void TallyCore::HandleConfig(ButtonEvent button_event) {
-  if (button_event == ButtonEvent::kShortPress) {
-    SetState(previous_state_);
-  } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    SetState(SystemState::kShutdown);
+  static uint32_t click_time = 0;
+  static bool click_pending = false;
+
+  if (button_event == ButtonEvent::kShortClicked) {
+    click_time = millis();
+    click_pending = true;
+  }
+
+  if (click_pending &&
+      (millis() - click_time > button_.GetMaxSequencePause())) {
+    click_pending = false;
+
+    if (!button_.IsPressed()) {
+      SetState(previous_state_);
+    }
   }
 }
-
 void TallyCore::HandleShutdown() {
   delay(150);
 
@@ -232,4 +229,45 @@ void TallyCore::ProcessPayload() {
   //       break;
   //   }
   // }
+}
+
+bool TallyCore::HandleGlobalButton(ButtonEvent button_event) {
+  if (current_state_ == SystemState::kBoot ||
+      current_state_ == SystemState::kShutdown) {
+    return false;
+  }
+
+  static uint32_t last_short_press_time = 0;
+  static bool is_in_sequence = false;
+  uint32_t now = millis();
+
+  if (button_event == ButtonEvent::kShortClicked) {
+    last_short_press_time = now;
+    return false;
+  }
+
+  if (button_event == ButtonEvent::kPressed) {
+    if (last_short_press_time != 0 &&
+        (now - last_short_press_time <= button_.GetMaxSequencePause())) {
+      is_in_sequence = true;
+    } else {
+      is_in_sequence = false;
+    }
+    return false;
+  }
+
+  if (button_event == ButtonEvent::kLongPressStart) {
+    if (is_in_sequence) {
+      SetState(SystemState::kShutdown);
+    } else {
+      SetState(SystemState::kConfig);
+    }
+
+    last_short_press_time = 0;
+    is_in_sequence = false;
+
+    return true;
+  }
+
+  return false;
 }

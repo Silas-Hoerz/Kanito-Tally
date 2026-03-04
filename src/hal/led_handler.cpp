@@ -46,7 +46,7 @@ void LedHandler::Update() {
 
     case LedMode::kBreath: {
       float phase = (float)(millis() % interval_ms_) / (float)interval_ms_;
-      uint8_t wave = (sin(phase * 2.0f * PI - PI / 2.0f) + 1.0f) / 2.0f;
+      float wave = (sin(phase * 2.0f * PI - PI / 2.0f) + 1.0f) / 2.0f;
 
       analogWrite(pin_, CalculateGamma(active_max * wave));
       break;

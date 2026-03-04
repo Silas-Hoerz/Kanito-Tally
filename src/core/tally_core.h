@@ -38,6 +38,10 @@ class TallyCore {
   NetworkHandler& network_;
 
   uint32_t boot_time_;
+  // uint32_t last_release_time_ = 0;
+  // bool sequence_active_ = false;
+
+  bool HandleGlobalButton(ButtonEvent event);
 };
 
 #endif  // KANITO_TALLY_CORE_TALLY_CORE_H_
