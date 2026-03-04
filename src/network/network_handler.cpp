@@ -46,16 +46,23 @@ void NetworkHandler::Update() {
 
         // UDP Setup
         if (!udp_initialized_) {
-          if (udp_.listen(4444)) {
-            udp_.onPacket([](AsyncUDPPacket packet) {
-              String message = packet.readString();
-              Serial.printf("UDP Paket von %s empfangen; %s\n",
-                            packet.remoteIP().toString().c_str(),
-                            message.c_str());
+          if (udp_.listen(kDefaultUdpPort)) {
+            udp_.onPacket([this](AsyncUDPPacket packet) {
+              udp_initialized_ = true;
+              if (packet.length() == sizeof(Payload)) {
+                Payload received_data;
+                memcpy(&received_data, packet.data(), sizeof(Payload));
+                if (received_data.magic_word == kMagicWord &&
+                    received_data.version == kProtocolVersion) {
+                  this->incoming_payload_ = received_data;
+                  this->has_new_payload_ = true;
+                  Serial.printf("UDP Paket von %s empfangen\n",
+                                packet.remoteIP().toString().c_str());
+                }
+              }
             });
           }
         }
-
       } else {
         if (millis() - connection_start_time_ > kConnectionTimeoutMs) {
           current_state_ = NetworkState::kDisconnected;
@@ -109,4 +116,13 @@ void NetworkHandler::EvaluateSignalStrength() {
     esp_wifi_set_ps(wifi_ps_type_t::WIFI_PS_MIN_MODEM);
     is_power_save_active_ = true;
   }
+}
+
+bool NetworkHandler::GetLatestPayload(Payload& out_payload) {
+  if (has_new_payload_) {
+    out_payload = incoming_payload_;
+    has_new_payload_ = false;
+    return true;
+  }
+  return false;
 }

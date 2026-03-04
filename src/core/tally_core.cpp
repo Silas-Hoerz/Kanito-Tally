@@ -8,6 +8,7 @@
 TallyCore::TallyCore(LedHandler& led, ButtonHandler& button,
                      NetworkHandler& network)
     : current_state_(SystemState::kBoot),
+      previous_state_(SystemState::kBoot),
       led_(led),
       button_(button),
       network_(network),
@@ -22,7 +23,13 @@ void TallyCore::SetState(SystemState new_state) {
   // 1. Execute exit actions for the current state
   OnStateExit(current_state_);
   // 2. Update the current state
+  previous_state_ = current_state_;
   current_state_ = new_state;
+
+  led_.SetRelativeIntensity(1.0f);
+  led_.SetMode(LedMode::kOn);
+  led_.Update();
+  delay(40);
   // 3. Execute entry actions for the new state
   OnStateEntry(current_state_);
 }
@@ -33,27 +40,37 @@ void TallyCore::OnStateEntry(SystemState state) {
   switch (state) {
     case SystemState::kBoot: {
       Serial.println("[CORE] State: Boot - Waiting for Long Press...");
+      led_.SetRelativeIntensity(0.5f);
       led_.SetMode(LedMode::kBlink);
-      led_.SetIntervalMs(100);
+      led_.SetIntervalMs(50);
 
       boot_time_ = millis();
       break;
     }
     case SystemState::kStandby: {
       Serial.println("[CORE] State: Standby - Connecting to Network...");
+      led_.SetRelativeIntensity(0.3f);
       led_.SetMode(LedMode::kBreath);
-      led_.SetIntervalMs(2000);
+      led_.SetIntervalMs(10000);
 
       network_.Connect(kWifiSsid, kWifiPassword);
       break;
     }
+    case SystemState::kPreview: {
+      led_.SetRelativeIntensity(0.5f);
+      Serial.println("[CORE] State: Preview - Preview");
+      led_.SetMode(LedMode::kOn);
+      break;
+    }
     case SystemState::kLive: {
+      led_.SetRelativeIntensity(1.0f);
       Serial.println("[CORE] State: Live - ON AIR");
       led_.SetMode(LedMode::kOn);
       break;
     }
     case SystemState::kConfig: {
       Serial.println("[CORE] State: Config - Starting AP...");
+      led_.SetRelativeIntensity(0.5f);
       led_.SetMode(LedMode::kBlink);
       led_.SetIntervalMs(500);
       break;
@@ -71,21 +88,27 @@ void TallyCore::OnStateEntry(SystemState state) {
 // --- Do ---
 
 void TallyCore::Update() {
+  ProcessPayload();
+  ButtonEvent button_event = button_.GetEvent();
   switch (current_state_) {
     case SystemState::kBoot: {
-      HandleBoot();
+      HandleBoot(button_event);
       break;
     }
     case SystemState::kStandby: {
-      HandleStandby();
+      HandleStandby(button_event);
+      break;
+    }
+    case SystemState::kPreview: {
+      HandlePreview(button_event);
       break;
     }
     case SystemState::kLive: {
-      HandleLive();
+      HandleLive(button_event);
       break;
     }
     case SystemState::kConfig: {
-      HandleConfig();
+      HandleConfig(button_event);
       break;
     }
     case SystemState::kShutdown: {
@@ -107,6 +130,9 @@ void TallyCore::OnStateExit(SystemState state) {
     case SystemState::kStandby: {
       break;
     }
+    case SystemState::kPreview: {
+      break;
+    }
     case SystemState::kLive: {
       break;
     }
@@ -123,33 +149,87 @@ void TallyCore::OnStateExit(SystemState state) {
 
 // --- Specific State Implementations ---
 
-void TallyCore::HandleBoot() {
-  ButtonEvent button_event = button_.GetEvent();
+void TallyCore::HandleBoot(ButtonEvent button_event) {
   if (button_event == ButtonEvent::kLongPress) {
     SetState(SystemState::kStandby);
-  } else if (millis() - boot_time_ >= 5000) {
-    //SetState(SystemState::kShutdown);
+  } else if (millis() - boot_time_ >= 3000) {
+    SetState(SystemState::kShutdown);
   }
 }
 
-void TallyCore::HandleStandby() {
-  // Check for Button Event
-  ButtonEvent button_event = button_.GetEvent();
+void TallyCore::HandleStandby(ButtonEvent button_event) {
   if (button_event == ButtonEvent::kLongPress) {
     SetState(SystemState::kConfig);
   } else if (button_event == ButtonEvent::kShortAndLongPress) {
-    //SetState(SystemState::kShutdown);
+    SetState(SystemState::kShutdown);
+  }
+}
+void TallyCore::HandlePreview(ButtonEvent button_event) {
+  if (button_event == ButtonEvent::kLongPress) {
+    SetState(SystemState::kConfig);
+  } else if (button_event == ButtonEvent::kShortAndLongPress) {
+    SetState(SystemState::kShutdown);
   }
 }
 
-void TallyCore::HandleLive() {}
+void TallyCore::HandleLive(ButtonEvent button_event) {
+  if (button_event == ButtonEvent::kLongPress) {
+    SetState(SystemState::kConfig);
+  } else if (button_event == ButtonEvent::kShortAndLongPress) {
+    SetState(SystemState::kShutdown);
+  }
+}
 
-void TallyCore::HandleConfig() {}
+void TallyCore::HandleConfig(ButtonEvent button_event) {
+  if (button_event == ButtonEvent::kShortPress) {
+    SetState(previous_state_);
+  } else if (button_event == ButtonEvent::kShortAndLongPress) {
+    SetState(SystemState::kShutdown);
+  }
+}
 
 void TallyCore::HandleShutdown() {
-  delay(100);
- 
-  //esp_deep_sleep_enable_gpio_wakeup((1ULL << kPinButton),
-  //                                  ESP_GPIO_WAKEUP_GPIO_LOW);
- // esp_deep_sleep_start();
+  delay(150);
+
+  esp_deep_sleep_enable_gpio_wakeup((1ULL << kPinButton),
+                                    ESP_GPIO_WAKEUP_GPIO_LOW);
+  esp_deep_sleep_start();
+}
+
+void TallyCore::ProcessPayload() {
+  // Payload incomming_data;
+
+  // if (network_.GetLatestPayload(incomming_data)) {
+  //   CommandType command = incomming_data.command;
+  //   switch (command) {
+  //     case CommandType::kHeartbeat:
+  //       /* code */
+  //       break;
+  //     case CommandType::kSetState:
+  //       switch (incomming_data.state) {
+  //         case DeviceState::kLive:
+  //           SetState(SystemState::kLive);
+  //           break;
+  //         case DeviceState::kPreview:
+  //           SetState(SystemState::kPreview);
+  //           break;
+  //         case DeviceState::kOff:
+  //           SetState(SystemState::kStandby);
+  //           break;
+  //       }
+  //       break;
+  //     case CommandType::kSetConfig:
+  //       /* code */
+  //       break;
+  //     case CommandType::kDiscoveryPing:
+  //       /* code */
+  //       break;
+  //     case CommandType::kDiscoveryPong:
+  //       /* code */
+  //       break;
+
+  //     default:
+  //       break;
+  //   }
+  // }
 }

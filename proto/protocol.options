@@ -1,0 +1,2 @@
+ConfigPayload.wifi_ssid max_size:33
+ConfigPayload.wifi_password max_size:64

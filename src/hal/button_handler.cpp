@@ -95,6 +95,7 @@ void ButtonHandler::OnDoubleClick(void* ptr) {
 void ButtonHandler::OnLongPressStart(void* ptr) {
   ButtonHandler* instance = static_cast<ButtonHandler*>(ptr);
   instance->AddAction(ActionType::kLong);
+  instance->EvaluateSequence();
 }
 
 void ButtonHandler::OnLongPressStop(void* ptr) {

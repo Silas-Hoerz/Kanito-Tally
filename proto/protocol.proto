@@ -1,0 +1,41 @@
+// nanopb_generator protocol.proto
+// python -m grpc_tools.protoc -I. --python_out=. protocol.proto
+
+syntax = "proto3";
+
+
+enum CommandType {
+  CMD_UNKNOWN = 0;
+  CMD_SET_STATE = 1;
+  CMD_SET_CONFIG = 2;
+  CMD_HEARTBEAT = 3;
+  CMD_DISCOVERY_PING = 4;
+  CMD_DISCOVERY_PONG = 5;
+}
+
+enum DeviceState {
+  STATE_OFF = 0;
+  STATE_PREVIEW = 1;
+  STATE_LIVE = 2;
+}
+
+message StatePayload {
+  DeviceState state = 1;
+}
+
+message ConfigPayload {
+  optional uint32 brightness = 1; 
+  optional string wifi_ssid = 2;
+  optional string wifi_password = 3;
+}
+
+message Payload {
+  uint32 magic_word = 1; 
+  uint32 version = 2;
+  CommandType command = 3;
+
+  oneof data {
+    StatePayload state_data = 4;
+    ConfigPayload config_data = 5;
+  }
+}

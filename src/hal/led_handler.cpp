@@ -8,38 +8,53 @@ LedHandler::LedHandler(uint8_t pin)
       current_mode_(LedMode::kOff),
       last_update_ms_(0),
       interval_ms_(500),
-      state_(false) {}
+      state_(false),
+      master_brightness_(255),
+      relative_intensity_(1.0f) {}
 
 void LedHandler::Begin() {
-  pinMode(pin_, OUTPUT);
-  digitalWrite(pin_, LOW);
+  analogWriteResolution(pin_, kPwmResolutionBits);
+  analogWrite(pin_, 0);
+}
+
+void LedHandler::SetMasterBrightness(uint8_t brightness) {
+  master_brightness_ = brightness;
+}
+void LedHandler::SetRelativeIntensity(float intensity) {
+  relative_intensity_ = constrain(intensity, 0.0f, 1.0f);
+}
+uint32_t LedHandler::CalculateGamma(float normalized_value) {
+  if (normalized_value <= 0.0f) return 0;
+  if (normalized_value >= 1.0f) return kPwmMaxVal;
+  return (uint32_t)(pow(normalized_value, 2.8f) * kPwmMaxVal);
 }
 
 void LedHandler::Update() {
+  float active_max = (master_brightness_ / 255.0f) * relative_intensity_;
   switch (current_mode_) {
     case LedMode::kOn:
-      digitalWrite(pin_, HIGH);
+      analogWrite(pin_, CalculateGamma(active_max));
       break;
 
     case LedMode::kBlink:
       if (millis() - last_update_ms_ >= interval_ms_) {
         last_update_ms_ = millis();
         state_ = !state_;
-        digitalWrite(pin_, state_ ? HIGH : LOW);
+        analogWrite(pin_, state_ ? CalculateGamma(active_max) : 0);
       }
       break;
 
     case LedMode::kBreath: {
       float phase = (float)(millis() % interval_ms_) / (float)interval_ms_;
-      uint8_t intensity =
-          (uint8_t)((sin(phase * 2.0 * PI - PI / 2.0) + 1.0) * 127.5);
-      analogWrite(pin_, intensity);
+      uint8_t wave = (sin(phase * 2.0f * PI - PI / 2.0f) + 1.0f) / 2.0f;
+
+      analogWrite(pin_, CalculateGamma(active_max * wave));
       break;
     }
 
     // LedMode::kOff
     default:
-      digitalWrite(pin_, LOW);
+      analogWrite(pin_, 0);
       break;
   }
 }

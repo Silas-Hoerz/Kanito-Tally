@@ -4,10 +4,15 @@
 
 #include <AsyncUDP.h>
 #include <WiFi.h>
+// #include <pb.h>
+// #include <pb_decode.h>
 
 #include "Arduino.h"
 #include "config.h"
 #include "esp_wifi.h"
+#include "protocol.h"
+// #include "protocol.pb.h"
+const uint16_t kDefaultUdpPort = 4444;
 
 enum class NetworkState { kDisconnected, kConnecting, kConnected };
 
@@ -24,6 +29,7 @@ class NetworkHandler {
   NetworkState GetState();
   bool IsConnected();
   int8_t GetRssi();
+  bool GetLatestPayload(Payload& out_payload);
 
  private:
   void EvaluateSignalStrength();
@@ -37,6 +43,7 @@ class NetworkHandler {
 
   char ssid_[33];
   char password_[64];
+  uint16_t udp_port_;
 
   IPAddress local_ip_;
   int8_t rssi_;
@@ -46,8 +53,12 @@ class NetworkHandler {
 
   AsyncUDP udp_;
 
+  Payload incoming_payload_;
+  bool has_new_payload_ = false;
+
   static constexpr uint32_t kConnectionTimeoutMs = 10000;
   static constexpr uint32_t kReconnectIntervallMs = 5000;
+
   // static constexpr uint32_t kEvaluationIntervallMs = 2000;
 };
 

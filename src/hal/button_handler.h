@@ -37,7 +37,7 @@ class ButtonHandler {
   uint8_t sequence_length_;
   uint32_t last_action_time_;
 
-  static constexpr uint32_t kComboTimeoutMs = 300;
+  static constexpr uint32_t kComboTimeoutMs = 600;
 
   void AddAction(ActionType action);
   void EvaluateSequence();
