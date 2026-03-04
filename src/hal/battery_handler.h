@@ -34,6 +34,11 @@ class BatteryHandler {
   float rate_of_change_ = 0.0f;            // % per ms
   float estimated_time_remaining_ = 0.0f;  // min
 
+  uint32_t last_charge_check_time_ = 0;
+  float last_checked_voltage_ = 0.0f;
+  uint8_t charge_confidence_ = 0;
+  bool is_charging_ = false;
+
   float CalculatePercentage(float voltage);
 };
 

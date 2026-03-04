@@ -17,6 +17,8 @@ void BatteryHandler::Update() {
         (analogReadMilliVolts(pin_) * kVoltageDividerRatio / 1000.0f);
     if (is_first_read_) {
       filtered_voltage_ = current_voltage_v;
+      last_checked_voltage_ = current_voltage_v;
+      last_percentage_ = CalculatePercentage(filtered_voltage_);
       is_first_read_ = false;
     } else {
       filtered_voltage_ =
@@ -25,24 +27,51 @@ void BatteryHandler::Update() {
     current_percentage_ = CalculatePercentage(filtered_voltage_);
   }
 
-  // Update rate of change every minute
+ 
+  if (current_time - last_charge_check_time_ > 5000) {
+    float delta_voltage = filtered_voltage_ - last_checked_voltage_;
 
+    if (delta_voltage > 0.01f) {
+      charge_confidence_++;
+    }
+    // Wenn die Spannung sinkt (z.B. > 5mV), entlädt er sicher
+    else if (delta_voltage < -0.005f) {
+      if (charge_confidence_ > 0) charge_confidence_--;
+    }
+
+    // Hysterese: Status erst ändern, wenn das Signal stabil ist
+    if (charge_confidence_ >= 3) {
+      is_charging_ = true;
+      charge_confidence_ = 3;  // Deckelung nach oben
+    } else if (charge_confidence_ == 0) {
+      is_charging_ = false;
+    }
+
+    last_checked_voltage_ = filtered_voltage_;
+    last_charge_check_time_ = current_time;
+  }
+
+  // 3. Restzeit-Berechnung (Langsam: Nur alle 60 Sekunden updaten für ruhige
+  // Anzeige)
   if (current_time - last_update_time_ > 60000) {
     float delta_percentage = current_percentage_ - last_percentage_;
     uint32_t delta_time = current_time - last_update_time_;
-    rate_of_change_ = delta_percentage / delta_time;
+
+    rate_of_change_ =
+        delta_percentage / delta_time;  // Prozent pro Millisekunde
     last_percentage_ = current_percentage_;
     last_update_time_ = current_time;
-  }
-  // Estimate time remaining based on rate of change
-  if (rate_of_change_ == 0.0f) {
-    estimated_time_remaining_ = -1.0f;
-  } else if (IsCharging()) {
-    estimated_time_remaining_ =
-        (100.0f - current_percentage_) / (rate_of_change_ * 60000.0f);
-  } else {
-    estimated_time_remaining_ =
-        (current_percentage_) / (-rate_of_change_ * 60000.0f);
+
+    // Estimate time remaining based on rate of change
+    if (rate_of_change_ == 0.0f) {
+      estimated_time_remaining_ = -1.0f;
+    } else if (is_charging_) {
+      estimated_time_remaining_ =
+          (100.0f - current_percentage_) / (rate_of_change_ * 60000.0f);
+    } else {
+      estimated_time_remaining_ =
+          (current_percentage_) / (-rate_of_change_ * 60000.0f);
+    }
   }
 }
 // Simple linear interpolation based on a voltage-percentage LUT
