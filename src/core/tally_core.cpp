@@ -98,6 +98,8 @@ void TallyCore::OnStateEntry(SystemState state) {
 void TallyCore::Update() {
   ProcessPayload();
   SendTelemetry();
+  CheckBatteryHealth();
+
   ButtonEvent button_event = button_.GetEvent();
 
   bool event_consumed = false;
@@ -284,6 +286,9 @@ void TallyCore::SendTelemetry() {
     tx_msg.telemetry.battery_percentage = battery_.GetPercentage();
     tx_msg.telemetry.rssi = network_.GetRssi();
     tx_msg.telemetry.uptime_seconds = millis() / 1000;
+    tx_msg.telemetry.charge_state =
+        (protocol_v1_ChargeState)battery_.GetChargeState();
+    tx_msg.telemetry.battery_voltage = battery_.GetVoltageMv();
 
     network_.SendTelemetry(tx_msg);
   }
@@ -348,5 +353,35 @@ protocol_v1_State TallyCore::GetProtoState(SystemState internal_state) {
       return protocol_v1_State_STATE_ERROR;
     default:
       return protocol_v1_State_STATE_UNSPECIFIED;
+  }
+}
+
+void TallyCore::CheckBatteryHealth() {
+  if (battery_.GetChargeState() == CHARGE_STATE_UNSPECIFIED) {
+    return;
+  }
+  float voltage = battery_.GetVoltageMv();
+  float percentage = battery_.GetPercentage();
+
+  if (voltage < 3399.0f && current_state_ != SystemState::kShutdown) {
+    led_.SetMode(LedMode::kOff);
+    for (uint8_t i = 0; i < 2; i++) {
+      led_.TempFlash(500, 1.0f);
+      uint32_t flash_start = millis();
+      while (millis() - flash_start < 500) {
+        led_.Update();
+        delay(10);
+      }
+    }
+    SetState(SystemState::kShutdown);
+    return;
+  }
+
+  if (percentage <= 20.0f && !warned_20_percent_ &&
+      battery_.GetChargeState() != CHARGE_STATE_CHARGING) {
+    warned_20_percent_ = true;
+    led_.TempFlash(800, 1.0f);
+  } else if (percentage > 25.0f && warned_20_percent_) {
+    warned_20_percent_ = false;
   }
 }

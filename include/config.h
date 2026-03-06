@@ -9,6 +9,7 @@ const uint8_t kPinLedRed = D2;
 const uint8_t kPinLedGreen = D3;
 const uint8_t kPinLedBlue = D4;
 const uint8_t kPinAdcBat = A0;
+const uint8_t kPinAdcVbus = D10;
 
 // Sytsem Constants
 const uint32_t kSerialBaud = 115200;

@@ -10,7 +10,7 @@ void NetworkHandler::Connect(const char* ssid, const char* password) {
   WiFi.mode(WiFiMode_t::WIFI_MODE_STA);
 
   // sleep between DTIM Router-Beacons
-  esp_wifi_set_ps(wifi_ps_type_t::WIFI_PS_NONE);
+  esp_wifi_set_ps(wifi_ps_type_t::WIFI_PS_MIN_MODEM);
 
   WiFi.begin(ssid_, password_);
   current_state_ = NetworkState::kConnecting;
@@ -95,24 +95,24 @@ void NetworkHandler::EvaluateSignalStrength() {
   last_rssi_check_time_ = millis();
 
   rssi_ = WiFi.RSSI();
+  int8_t target_tx_power;
 
-  if (rssi_ < -80)
-    current_signal_quality_ = SignalQuality::kCritical;
-  else if (rssi_ < -70)
-    current_signal_quality_ = SignalQuality::kPoor;
-  else if (rssi_ < -60)
-    current_signal_quality_ = SignalQuality::kGood;
-  else
+  if (rssi_ > -60) {
     current_signal_quality_ = SignalQuality::kExcellent;
-
-  if (current_signal_quality_ == SignalQuality::kCritical &&
-      is_power_save_active_) {
-    esp_wifi_set_ps(wifi_ps_type_t::WIFI_PS_NONE);
-    is_power_save_active_ = false;
-  } else if (current_signal_quality_ <= SignalQuality::kPoor &&
-             !is_power_save_active_) {
-    esp_wifi_set_ps(wifi_ps_type_t::WIFI_PS_MIN_MODEM);
-    is_power_save_active_ = true;
+    target_tx_power = 40;
+  } else if (rssi_ > -70) {
+    current_signal_quality_ = SignalQuality::kGood;
+    target_tx_power = 56;
+  } else if (rssi_ > -80) {
+    current_signal_quality_ = SignalQuality::kPoor;
+    target_tx_power = 68;
+  } else {
+    current_signal_quality_ = SignalQuality::kCritical;
+    target_tx_power = 78;
+  }
+  if (target_tx_power != tx_power_) {
+    esp_wifi_set_max_tx_power(target_tx_power);
+    tx_power_ = target_tx_power;
   }
 }
 

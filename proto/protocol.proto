@@ -48,6 +48,7 @@ message Telemetry {
   int32 rssi = 3;
   float temperature_c = 4;
   uint32 uptime_seconds = 5;
+  float battery_voltage = 6; //mv
 }
 
 message HubToTally {

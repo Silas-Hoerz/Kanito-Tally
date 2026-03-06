@@ -45,13 +45,12 @@ class NetworkHandler {
 
   char ssid_[33];
   char password_[64];
-  uint16_t udp_port_;
   const uint16_t kDefaultUdpPort = 4444;
 
   IPAddress local_ip_;
   int8_t rssi_;
+  int8_t tx_power_ = 78;
 
-  bool is_power_save_active_ = false;
   bool udp_initialized_ = false;
 
   AsyncUDP udp_;

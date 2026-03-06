@@ -38,6 +38,9 @@ class TallyCore {
   void ProcessPayload();
   void SendTelemetry();
 
+  void CheckBatteryHealth();
+  bool warned_20_percent_ = false;
+
   // Transition helpers
   void OnStateEntry(SystemState state);
   void OnStateExit(SystemState state);

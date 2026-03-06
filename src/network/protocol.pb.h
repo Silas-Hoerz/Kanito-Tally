@@ -58,6 +58,7 @@ typedef struct _protocol_v1_Telemetry {
     int32_t rssi;
     float temperature_c;
     uint32_t uptime_seconds;
+    float battery_voltage;
 } protocol_v1_Telemetry;
 
 typedef struct _protocol_v1_HubToTally {
@@ -115,12 +116,12 @@ extern "C" {
 /* Initializer values for message structs */
 #define protocol_v1_NetworkConfig_init_default   {false, "", false, ""}
 #define protocol_v1_DeviceConfig_init_default    {false, "", false, 0, false, _protocol_v1_PowerMode_MIN}
-#define protocol_v1_Telemetry_init_default       {0, _protocol_v1_ChargeState_MIN, 0, 0, 0}
+#define protocol_v1_Telemetry_init_default       {0, _protocol_v1_ChargeState_MIN, 0, 0, 0, 0}
 #define protocol_v1_HubToTally_init_default      {0, false, _protocol_v1_State_MIN, false, protocol_v1_NetworkConfig_init_default, false, protocol_v1_DeviceConfig_init_default, false, 0, false, 0}
 #define protocol_v1_TallyToHub_init_default      {_protocol_v1_State_MIN, false, protocol_v1_Telemetry_init_default, false, 0, false, ""}
 #define protocol_v1_NetworkConfig_init_zero      {false, "", false, ""}
 #define protocol_v1_DeviceConfig_init_zero       {false, "", false, 0, false, _protocol_v1_PowerMode_MIN}
-#define protocol_v1_Telemetry_init_zero          {0, _protocol_v1_ChargeState_MIN, 0, 0, 0}
+#define protocol_v1_Telemetry_init_zero          {0, _protocol_v1_ChargeState_MIN, 0, 0, 0, 0}
 #define protocol_v1_HubToTally_init_zero         {0, false, _protocol_v1_State_MIN, false, protocol_v1_NetworkConfig_init_zero, false, protocol_v1_DeviceConfig_init_zero, false, 0, false, 0}
 #define protocol_v1_TallyToHub_init_zero         {_protocol_v1_State_MIN, false, protocol_v1_Telemetry_init_zero, false, 0, false, ""}
 
@@ -135,6 +136,7 @@ extern "C" {
 #define protocol_v1_Telemetry_rssi_tag           3
 #define protocol_v1_Telemetry_temperature_c_tag  4
 #define protocol_v1_Telemetry_uptime_seconds_tag 5
+#define protocol_v1_Telemetry_battery_voltage_tag 6
 #define protocol_v1_HubToTally_message_id_tag    1
 #define protocol_v1_HubToTally_set_state_tag     2
 #define protocol_v1_HubToTally_set_network_tag   3
@@ -165,7 +167,8 @@ X(a, STATIC,   SINGULAR, INT32,    battery_percentage,   1) \
 X(a, STATIC,   SINGULAR, UENUM,    charge_state,      2) \
 X(a, STATIC,   SINGULAR, INT32,    rssi,              3) \
 X(a, STATIC,   SINGULAR, FLOAT,    temperature_c,     4) \
-X(a, STATIC,   SINGULAR, UINT32,   uptime_seconds,    5)
+X(a, STATIC,   SINGULAR, UINT32,   uptime_seconds,    5) \
+X(a, STATIC,   SINGULAR, FLOAT,    battery_voltage,   6)
 #define protocol_v1_Telemetry_CALLBACK NULL
 #define protocol_v1_Telemetry_DEFAULT NULL
 
@@ -208,8 +211,8 @@ extern const pb_msgdesc_t protocol_v1_TallyToHub_msg;
 #define protocol_v1_DeviceConfig_size            46
 #define protocol_v1_HubToTally_size              162
 #define protocol_v1_NetworkConfig_size           100
-#define protocol_v1_TallyToHub_size              110
-#define protocol_v1_Telemetry_size               35
+#define protocol_v1_TallyToHub_size              115
+#define protocol_v1_Telemetry_size               40
 
 #ifdef __cplusplus
 } /* extern "C" */

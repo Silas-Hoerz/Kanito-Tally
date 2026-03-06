@@ -12,7 +12,7 @@
 LedHandler status_led(kPinLedRed);
 ButtonHandler button(kPinButton, true);
 NetworkHandler network;
-BatteryHandler battery(kPinAdcBat);
+BatteryHandler battery(kPinAdcBat, kPinAdcVbus);
 TallyCore core(status_led, button, network, battery);
 
 void setup() {
