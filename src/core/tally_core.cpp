@@ -6,16 +6,23 @@
 #include "secrets.h"
 
 TallyCore::TallyCore(LedHandler& led, ButtonHandler& button,
-                     NetworkHandler& network, BatteryHandler& battery)
+                     NetworkHandler& network, BatteryHandler& battery,
+                     StorageHandler& storage, ConfigPortal& portal)
     : current_state_(SystemState::kBoot),
       previous_state_(SystemState::kBoot),
       led_(led),
       button_(button),
       network_(network),
       battery_(battery),
+      storage_(storage),
+      portal_(portal),
       boot_time_(0) {}
 
-void TallyCore::Begin() { OnStateEntry(current_state_); }
+void TallyCore::Begin() {
+  OnStateEntry(current_state_);
+  bool has_config = storage_.LoadWifiConfig(
+      wifi_ssid_, sizeof(wifi_ssid_), wifi_password_, sizeof(wifi_password_));
+}
 
 void TallyCore::SetState(SystemState new_state) {
   if (current_state_ == new_state) {
@@ -31,6 +38,7 @@ void TallyCore::SetState(SystemState new_state) {
   led_.SetMode(LedMode::kOn);
   led_.Update();
   delay(40);
+
   // 3. Execute entry actions for the new state
   OnStateEntry(current_state_);
 }
@@ -54,7 +62,7 @@ void TallyCore::OnStateEntry(SystemState state) {
       led_.SetMode(LedMode::kBreath);
       led_.SetIntervalMs(10000);
 
-      network_.Connect(kWifiSsid, kWifiPassword);
+      network_.Connect(wifi_ssid_, wifi_password_);
       break;
     }
     case SystemState::kPreview: {
@@ -74,6 +82,7 @@ void TallyCore::OnStateEntry(SystemState state) {
       led_.SetRelativeIntensity(0.5f);
       led_.SetMode(LedMode::kBlink);
       led_.SetIntervalMs(500);
+      portal_.Start();
       break;
     }
     case SystemState::kShutdown: {
@@ -159,6 +168,7 @@ void TallyCore::OnStateExit(SystemState state) {
       break;
     }
     case SystemState::kConfig: {
+      portal_.Stop();
       break;
     }
     case SystemState::kShutdown: {
@@ -201,6 +211,14 @@ void TallyCore::HandleConfig(ButtonEvent button_event) {
     if (!button_.IsPressed()) {
       SetState(previous_state_);
     }
+  }
+
+  portal_.Update();  // DNS Server am Leben halten
+
+  if (portal_.IsFinished()) {
+    delay(
+        1000);  // Kurz warten, damit der Browser die Erfolgsmeldung laden kann
+    ESP.restart();  // BAM! Harter Neustart mit den neuen Settings!
   }
 }
 void TallyCore::HandleShutdown() {
@@ -363,7 +381,8 @@ void TallyCore::CheckBatteryHealth() {
   float voltage = battery_.GetVoltageMv();
   float percentage = battery_.GetPercentage();
 
-  if (voltage < 3399.0f && current_state_ != SystemState::kShutdown) {
+  if (voltage < 3399.0f && current_state_ != SystemState::kShutdown &&
+      voltage != 0.0f) {
     led_.SetMode(LedMode::kOff);
     for (uint8_t i = 0; i < 2; i++) {
       led_.TempFlash(500, 1.0f);

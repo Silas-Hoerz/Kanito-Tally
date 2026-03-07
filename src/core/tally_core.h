@@ -5,6 +5,8 @@
 #include "hal/battery_handler.h"
 #include "hal/button_handler.h"
 #include "hal/led_handler.h"
+#include "hal/storage_handler.h"
+#include "network/config_portal.h"
 #include "network/network_handler.h"
 
 enum class SystemState {
@@ -20,7 +22,8 @@ enum class SystemState {
 class TallyCore {
  public:
   explicit TallyCore(LedHandler& led, ButtonHandler& button,
-                     NetworkHandler& network, BatteryHandler& battery);
+                     NetworkHandler& network, BatteryHandler& battery,
+                     StorageHandler& storage, ConfigPortal& portal);
   void Begin();
   void Update();
   // Triggers a state transition
@@ -50,7 +53,12 @@ class TallyCore {
   LedHandler& led_;
   ButtonHandler& button_;
   NetworkHandler& network_;
+  ConfigPortal& portal_;
   BatteryHandler& battery_;
+  StorageHandler& storage_;
+
+  char wifi_ssid_[33] = {0};
+  char wifi_password_[64] = {0};
 
   uint32_t boot_time_;
   // uint32_t last_release_time_ = 0;
